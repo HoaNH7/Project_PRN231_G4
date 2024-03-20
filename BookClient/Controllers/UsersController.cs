@@ -6,17 +6,26 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using BookClient.Models;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using System.Diagnostics.Metrics;
+using System.Net.Http.Headers;
 
 namespace BookClient.Controllers
 {
     public class UsersController : Controller
     {
         private readonly BookStoreContext _context;
+		private readonly HttpClient client;
+		private string UserUrl = "https://localhost:7006/odata/Users";
 
-        public UsersController(BookStoreContext context)
+		public UsersController(BookStoreContext context)
         {
             _context = context;
-        }
+			client = new HttpClient();
+			var contentType = new MediaTypeWithQualityHeaderValue("application/json");
+			client.DefaultRequestHeaders.Accept.Add(contentType);
+		}
 
         // GET: Users
         public async Task<IActionResult> Index()
@@ -26,8 +35,55 @@ namespace BookClient.Controllers
                           Problem("Entity set 'BookStoreContext.Users'  is null.");
         }
 
-        // GET: Users/Details/5
-        public async Task<IActionResult> Details(int? id)
+		public async Task<IActionResult> Login()
+		{
+			return View();
+		}
+
+		[HttpPost]
+		public async Task<IActionResult> Login(string Email, string Password)
+		{
+			string email, pass;
+			var conf = new ConfigurationBuilder()
+				.AddJsonFile("appsettings.json")
+				.Build();
+			email = conf.GetSection("Admin").GetSection("Email").Value.ToString();
+			pass = conf.GetSection("Admin").GetSection("Password").Value.ToString();
+
+			if (email == Email && pass == Password)
+			{
+				HttpContext.Session.SetInt32("Role", 1);
+				HttpContext.Session.SetString("Email", email);
+				HttpContext.Session.SetInt32("MemberId", 0);
+				return RedirectToAction("Index", "Home");
+			}
+			try
+			{
+				HttpResponseMessage response = await client.GetAsync(UserUrl);
+				response.EnsureSuccessStatusCode();
+				string strData = await response.Content.ReadAsStringAsync();
+				var data = JObject.Parse(strData);
+				List<User> members = JsonConvert.DeserializeObject<List<User>>(data["value"].ToString());
+				List<User> users = members.Where(m => m.Email == Email
+					&& m.Password == Password).ToList();
+				if (users.Count == 0) return View();
+				else
+				{
+					HttpContext.Session.SetInt32("Role", 0);
+					HttpContext.Session.SetString("Email", users[0].Email);
+					HttpContext.Session.SetInt32("MemberId", users[0].UserId);
+					return RedirectToAction("Index", "Home");
+				}
+			}
+			catch
+			{
+				return View();
+			}
+
+		}
+
+		// GET: Users/Details/5
+		public async Task<IActionResult> Details(int? id)
         {
             if (id == null || _context.Users == null)
             {

@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34330.188
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BookAPI", "BookAPI\BookAPI.csproj", "{B0A5E5F6-1E3E-483C-82DE-09AC47D50BA3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BookAPI", "BookAPI\BookAPI.csproj", "{B0A5E5F6-1E3E-483C-82DE-09AC47D50BA3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BookClient", "BookClient\BookClient.csproj", "{D4EC3C04-8D36-441D-BC34-22C1FDD3B688}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BookClient", "BookClient\BookClient.csproj", "{D4EC3C04-8D36-441D-BC34-22C1FDD3B688}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
