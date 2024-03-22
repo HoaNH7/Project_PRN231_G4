@@ -7,10 +7,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BookAPI.Models;
 using Microsoft.AspNetCore.OData.Query;
+using Microsoft.AspNetCore.OData.Routing.Controllers;
 
 namespace BookAPI.Controllers
 {
-    public class BooksController : ControllerBase
+    public class BooksController : ODataController
     {
         private readonly BookStoreContext _context;
 
@@ -82,7 +83,7 @@ namespace BookAPI.Controllers
 
         // POST: api/Books
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost("odata/Books")]
+        [HttpPost("odata/Books/Create")]
         public async Task<ActionResult<Book>> PostBook([FromBody] Book book)
         {
             if (_context.Books == null)

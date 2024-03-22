@@ -10,25 +10,28 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+using System.Drawing.Printing;
 
 namespace BookClient.Controllers
 {
     public class BooksController : Controller
     {
-        private readonly BookStoreContext _context;
+        private readonly IConfiguration _configuration;
         private readonly HttpClient client;
         private string CategoryUrl = "https://localhost:7006/odata/Categories";
         private string BookUrl = "https://localhost:7006/odata/Books";
 
-        public BooksController()
+        public BooksController(IConfiguration configuration)
         {
             client = new HttpClient();
             var contentType = new MediaTypeWithQualityHeaderValue("application/json");
             client.DefaultRequestHeaders.Accept.Add(contentType);
+            _configuration = configuration;
         }
 
         // GET: Books
-        public async Task<IActionResult> Index(string search)
+        public async Task<IActionResult> Index(string search, int page = 1, int pageSize = 5)
         {
             HttpResponseMessage boRes = await client.GetAsync(BookUrl);
             string strDataBo = await boRes.Content.ReadAsStringAsync();
@@ -40,7 +43,6 @@ namespace BookClient.Controllers
             var dataCat = JObject.Parse(strDataCat);
             List<Category> categories = JsonConvert.DeserializeObject<List<Category>>(dataCat["value"].ToString());
 
-            // Gán thông tin category cho mỗi sản phẩm
             foreach (var book in books)
             {
                 book.Category = categories.FirstOrDefault(c => c.CategoryId == book.CategoryId);
@@ -48,24 +50,75 @@ namespace BookClient.Controllers
 
             if (!string.IsNullOrEmpty(search))
             {
-                // Lọc sản phẩm dựa trên truy vấn tìm kiếm
-                //books = books.Where(p =>
-                //    p.BookName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                //    p.UnitPrice.ToString().Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                //    p.Category.CategoryName.Contains(search, StringComparison.OrdinalIgnoreCase)
-                //).ToList();
+               books = books.Where(p =>
+                   p.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                   p.Author.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                   p.Category.CategoryName.Contains(search, StringComparison.OrdinalIgnoreCase)
+               ).ToList();
             }
+            var filteredBooks = books.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+            ViewBag.Model = filteredBooks;
+
+            int totalBooksCount = books.Count; // Tổng số sách
+            ViewBag.PageNumber = page; // Số trang hiện tại
+            ViewBag.PageSize = pageSize; // Kích thước trang
+            ViewBag.TotalBooksCount = totalBooksCount; // Tổng số sách
+            ViewBag.TotalPages = (int)Math.Ceiling((double)totalBooksCount / pageSize); // Tổng số trang
             ViewBag.SearchQuery = search;
-            return View(books);
+            return View(filteredBooks);
         }
+
 
         // GET: Books/Details/5
         public async Task<IActionResult> Details(int? id, Book books)
         {
-            HttpResponseMessage response = await client.GetAsync($"{BookUrl}/{id}");
-            string strData = await response.Content.ReadAsStringAsync();
-            books = JsonConvert.DeserializeObject<Book>(strData);
-            return View(books);
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            // Tạo một đối tượng book để chứa thông tin sách
+            Book book;
+
+            // Gửi request để lấy thông tin sách từ API
+            HttpResponseMessage bookResponse = await client.GetAsync($"{BookUrl}/{id}");
+
+            if (bookResponse.IsSuccessStatusCode)
+            {
+                // Đọc và chuyển đổi dữ liệu sách từ response
+                string bookData = await bookResponse.Content.ReadAsStringAsync();
+                book = JsonConvert.DeserializeObject<Book>(bookData);
+            }
+            else
+            {
+                // Trả về NotFound nếu không tìm thấy sách
+                return NotFound();
+            }
+
+            // Tạo một đối tượng category để chứa thông tin danh mục
+            Category category;
+
+            // Gửi request để lấy thông tin danh mục từ API
+            HttpResponseMessage categoryResponse = await client.GetAsync($"{CategoryUrl}/{book.CategoryId}");
+
+            if (categoryResponse.IsSuccessStatusCode)
+            {
+                // Đọc và chuyển đổi dữ liệu danh mục từ response
+                string categoryData = await categoryResponse.Content.ReadAsStringAsync();
+                category = JsonConvert.DeserializeObject<Category>(categoryData);
+            }
+            else
+            {
+                // Nếu không tìm thấy danh mục, gán danh mục là null
+                category = null;
+            }
+
+            // Gán thông tin danh mục vào sách
+            book.Category = category;
+
+            // Truyền đối tượng sách với thông tin danh mục vào view
+            return View(book);
         }
 
         public async Task<List<Category>> GetCategoriesAsync()
@@ -154,7 +207,7 @@ namespace BookClient.Controllers
         }
 
         // GET: Books/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        public async Task<IActionResult> Remove(int? id)
         {
             try
             {
@@ -171,9 +224,9 @@ namespace BookClient.Controllers
         }
 
         // POST: Books/Delete/5
-        [HttpPost, ActionName("Delete")]
+        [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id, Book books)
+        public async Task<IActionResult> Remove(int id, Book books)
         {
             try
             {

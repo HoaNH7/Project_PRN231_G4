@@ -74,6 +74,7 @@ namespace BookClient.Controllers
                         HttpContext.Session.SetString("Role", "user");
                     }
                     HttpContext.Session.SetString("Email", Email);
+                    HttpContext.Session.SetInt32("UserId", 0);
                     return RedirectToAction("Index", "Home");
                 }
                 else
@@ -96,7 +97,7 @@ namespace BookClient.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Register(string Email, string Password)
+        public async Task<IActionResult> Register(string Email, string Password, string rePassword)
         {
             try
             {
@@ -109,6 +110,7 @@ namespace BookClient.Controllers
                 if (existingUsers.Any(u => u.Email == Email))
                 {
                     TempData["ErrorMessage"] = "User with this email already exists.";
+                    TempData["Email"] = Email;
                     return RedirectToAction("Register","Users");
                 }
 
@@ -116,9 +118,16 @@ namespace BookClient.Controllers
                 {
                     Email = Email,
                     Password = Password,
+                    RePassword = rePassword,
                     Role = "user"
                 };
 
+
+                if (Password != rePassword && Email == null)
+                {
+                    TempData["Password"] = "Passwords do not match.";
+                    return RedirectToAction("Register", "Users"); 
+                }
                 string userDataJson = JsonConvert.SerializeObject(newUser);
                 var content = new StringContent(userDataJson, Encoding.UTF8, "application/json");
 
