@@ -62,10 +62,10 @@ namespace BookClient.Controllers
                 existingUserResponse.EnsureSuccessStatusCode();
                 string existingUserData = await existingUserResponse.Content.ReadAsStringAsync();
                 var existingUsers = JsonConvert.DeserializeObject<List<User>>(JObject.Parse(existingUserData)["value"].ToString());
-
-                if (existingUsers.Any(u => u.Email == Email && u.Password == Password))
+                var logUser = existingUsers.FirstOrDefault(u => u.Email == Email && u.Password == Password);
+                if(logUser != null)
                 {
-                    if (existingUsers.Any(u => u.Role == "admin"))
+                    if (logUser.Role == "admin")
                     {
                         HttpContext.Session.SetString("Role", "admin");
                     }
@@ -73,15 +73,15 @@ namespace BookClient.Controllers
                     {
                         HttpContext.Session.SetString("Role", "user");
                     }
-                    HttpContext.Session.SetString("Email", Email);
-                    HttpContext.Session.SetInt32("UserId", 0);
-                    return RedirectToAction("Index", "Home");
                 }
                 else
                 {
-                    TempData["ErrorMessage"] = "User with this email already exists.";
+                    TempData["ErrorMessage"] = "Email or password invalid.";
                     return RedirectToAction("Login", "Users");
                 }
+                HttpContext.Session.SetString("Email", Email);
+                HttpContext.Session.SetInt32("UserId", 0);
+                return RedirectToAction("Index", "Home");
             }
             catch (Exception ex)
             {
@@ -111,7 +111,7 @@ namespace BookClient.Controllers
                 {
                     TempData["ErrorMessage"] = "User with this email already exists.";
                     TempData["Email"] = Email;
-                    return RedirectToAction("Register","Users");
+                    return RedirectToAction("Register", "Users");
                 }
 
                 var newUser = new RegisterViewModel
@@ -126,7 +126,7 @@ namespace BookClient.Controllers
                 if (Password != rePassword && Email == null)
                 {
                     TempData["Password"] = "Passwords do not match.";
-                    return RedirectToAction("Register", "Users"); 
+                    return RedirectToAction("Register", "Users");
                 }
                 string userDataJson = JsonConvert.SerializeObject(newUser);
                 var content = new StringContent(userDataJson, Encoding.UTF8, "application/json");

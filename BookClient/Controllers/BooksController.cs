@@ -50,10 +50,10 @@ namespace BookClient.Controllers
 
             if (!string.IsNullOrEmpty(search))
             {
-               books = books.Where(p =>
-                   p.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                   p.Author.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                   p.Category.CategoryName.Contains(search, StringComparison.OrdinalIgnoreCase)
+               books = books.Where(b =>
+                   b.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                   b.Author.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                   b.Category.CategoryName.Contains(search, StringComparison.OrdinalIgnoreCase)
                ).ToList();
             }
             var filteredBooks = books.Skip((page - 1) * pageSize).Take(pageSize).ToList();

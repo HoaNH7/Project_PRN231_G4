@@ -110,11 +110,11 @@
                                         @if (role == "admin")
                                         {
                                             <li class="menu-item active"><a asp-controller="Home" asp-action="Index">Home</a></li>
-                                            <li class="menu-item"><a href="#popular-books" class="nav-link">Popular</a></li>
                                             <li class="menu-item"><a asp-action="Index" asp-controller="Books" class="nav-link">Book</a></li>
+                                            <li class="menu-item"><a asp-action="Index" asp-controller="Categories" class="nav-link">Category</a></li>
                                             <li class="menu-item"><a asp-action="Logout" asp-controller="Users" class="nav-link">Logout(@email)</a></li>
                                         }
-                                        else
+                                        else if(role == "user")
                                         {
                                             <li class="menu-item active"><a asp-controller="Home" asp-action="Index">Home</a></li>
                                             <li class="menu-item"><a href="#download-app" class="nav-link">About us</a></li>

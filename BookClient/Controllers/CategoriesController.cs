@@ -24,7 +24,7 @@ namespace BookClient.Controllers
         }
 
         // GET: Categories
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string search, int page = 1, int pageSize = 5)
         {
             HttpResponseMessage response = await client.GetAsync(CategoryUrl);
             string strData = await response.Content.ReadAsStringAsync();
@@ -33,7 +33,24 @@ namespace BookClient.Controllers
                 PropertyNameCaseInsensitive = true,
             };
             List<Category> categories = JsonSerializer.Deserialize<List<Category>>(strData, options);
-            return View(categories);
+
+            if (!string.IsNullOrEmpty(search))
+            {
+                categories = categories.Where(c =>
+                    c.CategoryName.Contains(search, StringComparison.OrdinalIgnoreCase)
+                ).ToList();
+            }
+            var filteredCategories = categories.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+            ViewBag.Model = filteredCategories;
+
+            int totalCategoriesCount = categories.Count; 
+            ViewBag.PageNumber = page; // Số trang hiện tại
+            ViewBag.PageSize = pageSize; // Kích thước trang
+            ViewBag.TotalBooksCount = totalCategoriesCount; // Tổng số sách
+            ViewBag.TotalPages = (int)Math.Ceiling((double)totalCategoriesCount / pageSize); // Tổng số trang
+            ViewBag.SearchQuery = search;
+            return View(filteredCategories);
         }
 
         // GET: Categories/Details/5
