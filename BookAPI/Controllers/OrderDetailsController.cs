@@ -6,12 +6,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BookAPI.Models;
+using Microsoft.AspNetCore.OData.Routing.Controllers;
 
 namespace BookAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class OrderDetailsController : ControllerBase
+    public class OrderDetailsController : ODataController
     {
         private readonly BookStoreContext _context;
 

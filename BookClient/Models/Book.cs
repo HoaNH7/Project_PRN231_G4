@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 
 namespace BookClient.Models
 {
@@ -14,7 +13,6 @@ namespace BookClient.Models
         public int BookId { get; set; }
         public string Title { get; set; } = null!;
         public string Author { get; set; } = null!;
-        [DataType(DataType.ImageUrl)]
         public string ImageUrl { get; set; } = null!;
         public int CategoryId { get; set; }
         public decimal Price { get; set; }

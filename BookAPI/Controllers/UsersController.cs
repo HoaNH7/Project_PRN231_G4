@@ -6,12 +6,11 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BookAPI.Models;
+using Microsoft.AspNetCore.OData.Routing.Controllers;
 
 namespace BookAPI.Controllers
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class UsersController : ControllerBase
+    public class UsersController : ODataController
     {
         private readonly BookStoreContext _context;
 
@@ -19,7 +18,7 @@ namespace BookAPI.Controllers
         {
             _context = context;
         }
-
+    
         // GET: api/Users
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
@@ -31,8 +30,30 @@ namespace BookAPI.Controllers
             return await _context.Users.ToListAsync();
         }
 
+        [HttpPost("odata/Users/Register")]
+        public async Task<IActionResult> Register([FromBody] User user)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                _context.Users.Add(user);
+                await _context.SaveChangesAsync();
+
+                return Created(user);
+            }
+            catch (Exception ex)
+            {
+                // Xử lý ngoại lệ nếu có
+                return StatusCode(500, "An error occurred while registering the user.");
+            }
+        }
+
         // GET: api/Users/5
-        [HttpGet("{id}")]
+        [HttpGet("odata/Users/{id}")]
         public async Task<ActionResult<User>> GetUser(int id)
         {
             if (_context.Users == null)
@@ -51,8 +72,8 @@ namespace BookAPI.Controllers
 
         // PUT: api/Users/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutUser(int id, User user)
+        [HttpPut("odata/Users/{id}")]
+        public async Task<IActionResult> PutUser(int id, [FromBody] User user)
         {
             if (id != user.UserId)
             {
@@ -82,8 +103,8 @@ namespace BookAPI.Controllers
 
         // POST: api/Users
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<User>> PostUser(User user)
+        [HttpPost("odata/Users")]
+        public async Task<ActionResult<User>> PostUser([FromBody] User user)
         {
             if (_context.Users == null)
             {
@@ -96,7 +117,7 @@ namespace BookAPI.Controllers
         }
 
         // DELETE: api/Users/5
-        [HttpDelete("{id}")]
+        [HttpDelete("odata/Users/{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             if (_context.Users == null)

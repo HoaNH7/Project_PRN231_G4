@@ -10,80 +10,131 @@ using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using System.Diagnostics.Metrics;
 using System.Net.Http.Headers;
+using System.Text;
+using BookClient.ViewModel;
 
 namespace BookClient.Controllers
 {
     public class UsersController : Controller
     {
         private readonly BookStoreContext _context;
-		private readonly HttpClient client;
-		private string UserUrl = "https://localhost:7006/odata/Users";
+        private readonly HttpClient client;
+        private string UserUrl = "https://localhost:7006/odata/Users";
 
-		public UsersController(BookStoreContext context)
+        public UsersController(BookStoreContext context)
         {
             _context = context;
-			client = new HttpClient();
-			var contentType = new MediaTypeWithQualityHeaderValue("application/json");
-			client.DefaultRequestHeaders.Accept.Add(contentType);
-		}
+            client = new HttpClient();
+            var contentType = new MediaTypeWithQualityHeaderValue("application/json");
+            client.DefaultRequestHeaders.Accept.Add(contentType);
+        }
+
+        //public async Task<IActionResult> Register()
+        //{
+        //}
 
         // GET: Users
         public async Task<IActionResult> Index()
         {
-              return _context.Users != null ? 
-                          View(await _context.Users.ToListAsync()) :
-                          Problem("Entity set 'BookStoreContext.Users'  is null.");
+            return _context.Users != null ?
+                        View(await _context.Users.ToListAsync()) :
+                        Problem("Entity set 'BookStoreContext.Users'  is null.");
         }
 
-		public async Task<IActionResult> Login()
-		{
-			return View();
-		}
+        public async Task<IActionResult> Login()
+        {
+            return View();
+        }
 
-		[HttpPost]
-		public async Task<IActionResult> Login(string Email, string Password)
-		{
-			string email, pass;
-			var conf = new ConfigurationBuilder()
-				.AddJsonFile("appsettings.json")
-				.Build();
-			email = conf.GetSection("Admin").GetSection("Email").Value.ToString();
-			pass = conf.GetSection("Admin").GetSection("Password").Value.ToString();
+        public async Task<IActionResult> Logout()
+        {
+            HttpContext.Session.Clear();
+            return Redirect("Login");
+        }
 
-			if (email == Email && pass == Password)
-			{
-				HttpContext.Session.SetInt32("Role", 1);
-				HttpContext.Session.SetString("Email", email);
-				HttpContext.Session.SetInt32("MemberId", 0);
-				return RedirectToAction("Index", "Home");
-			}
-			try
-			{
-				HttpResponseMessage response = await client.GetAsync(UserUrl);
-				response.EnsureSuccessStatusCode();
-				string strData = await response.Content.ReadAsStringAsync();
-				var data = JObject.Parse(strData);
-				List<User> members = JsonConvert.DeserializeObject<List<User>>(data["value"].ToString());
-				List<User> users = members.Where(m => m.Email == Email
-					&& m.Password == Password).ToList();
-				if (users.Count == 0) return View();
-				else
-				{
-					HttpContext.Session.SetInt32("Role", 0);
-					HttpContext.Session.SetString("Email", users[0].Email);
-					HttpContext.Session.SetInt32("MemberId", users[0].UserId);
-					return RedirectToAction("Index", "Home");
-				}
-			}
-			catch
-			{
-				return View();
-			}
+        [HttpPost]
+        public async Task<IActionResult> Login(string Email, string Password)
+        {
+            try
+            {
+                var existingUserQuery = $"{UserUrl}?$filter=Email eq '{Email}' and eq '{Password}'";
+                HttpResponseMessage existingUserResponse = await client.GetAsync(existingUserQuery);
+                existingUserResponse.EnsureSuccessStatusCode();
+                string existingUserData = await existingUserResponse.Content.ReadAsStringAsync();
+                var existingUsers = JsonConvert.DeserializeObject<List<User>>(JObject.Parse(existingUserData)["value"].ToString());
 
-		}
+                if (existingUsers.Any(u => u.Email == Email && u.Password == Password))
+                {
+                    if (existingUsers.Any(u => u.Role == "admin"))
+                    {
+                        HttpContext.Session.SetString("Role", "admin");
+                    }
+                    else
+                    {
+                        HttpContext.Session.SetString("Role", "user");
+                    }
+                    HttpContext.Session.SetString("Email", Email);
+                    return RedirectToAction("Index", "Home");
+                }
+                else
+                {
+                    TempData["ErrorMessage"] = "User with this email already exists.";
+                    return RedirectToAction("Login", "Users");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Xử lý ngoại lệ nếu có
+                return View();
+            }
 
-		// GET: Users/Details/5
-		public async Task<IActionResult> Details(int? id)
+        }
+
+        public async Task<IActionResult> Register()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Register(string Email, string Password)
+        {
+            try
+            {
+                var existingUserQuery = $"{UserUrl}?$filter=Email eq '{Email}'";
+                HttpResponseMessage existingUserResponse = await client.GetAsync(existingUserQuery);
+                existingUserResponse.EnsureSuccessStatusCode();
+                string existingUserData = await existingUserResponse.Content.ReadAsStringAsync();
+                var existingUsers = JsonConvert.DeserializeObject<List<User>>(JObject.Parse(existingUserData)["value"].ToString());
+
+                if (existingUsers.Any(u => u.Email == Email))
+                {
+                    TempData["ErrorMessage"] = "User with this email already exists.";
+                    return RedirectToAction("Register","Users");
+                }
+
+                var newUser = new RegisterViewModel
+                {
+                    Email = Email,
+                    Password = Password,
+                    Role = "user"
+                };
+
+                string userDataJson = JsonConvert.SerializeObject(newUser);
+                var content = new StringContent(userDataJson, Encoding.UTF8, "application/json");
+
+                HttpResponseMessage response = await client.PostAsync(UserUrl, content);
+                response.EnsureSuccessStatusCode();
+
+                return RedirectToAction("Login", "Users");
+            }
+            catch (Exception ex)
+            {
+                return View();
+            }
+        }
+
+        // GET: Users/Details/5
+        public async Task<IActionResult> Details(int? id)
         {
             if (id == null || _context.Users == null)
             {
@@ -113,13 +164,25 @@ namespace BookClient.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("UserId,FullName,Email,PhoneNumber,Address,Password,Role")] User user)
         {
-            if (ModelState.IsValid)
+            try
             {
-                _context.Add(user);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                string strData = JsonConvert.SerializeObject(user);
+                var content = new StringContent(strData, System.Text.Encoding.UTF8, "application/json");
+                HttpResponseMessage res = await client.PostAsync(UserUrl, content);
+                res.EnsureSuccessStatusCode();
+                return RedirectToAction("Index");
             }
-            return View(user);
+            catch
+            {
+                return NotFound();
+            }
+            //if (ModelState.IsValid)
+            //{
+            //    _context.Add(user);
+            //    await _context.SaveChangesAsync();
+            //    return RedirectToAction(nameof(Index));
+            //}
+            //return View(user);
         }
 
         // GET: Users/Edit/5
@@ -205,14 +268,14 @@ namespace BookClient.Controllers
             {
                 _context.Users.Remove(user);
             }
-            
+
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 
         private bool UserExists(int id)
         {
-          return (_context.Users?.Any(e => e.UserId == id)).GetValueOrDefault();
+            return (_context.Users?.Any(e => e.UserId == id)).GetValueOrDefault();
         }
     }
 }

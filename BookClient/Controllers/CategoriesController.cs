@@ -82,8 +82,8 @@ namespace BookClient.Controllers
             else
                 return NotFound();
         }
-            // GET: Categories/Edit/5
-            public async Task<IActionResult> Edit(int? id)
+        // GET: Categories/Edit/5
+        public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
             {
@@ -169,6 +169,6 @@ namespace BookClient.Controllers
                 return View(category);
         }
 
-        
+
     }
 }

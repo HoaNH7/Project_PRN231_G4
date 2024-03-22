@@ -160,14 +160,14 @@ namespace BookClient.Controllers
             {
                 _context.OrderDetails.Remove(orderDetail);
             }
-            
+
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
 
         private bool OrderDetailExists(int id)
         {
-          return (_context.OrderDetails?.Any(e => e.OrderDetailId == id)).GetValueOrDefault();
+            return (_context.OrderDetails?.Any(e => e.OrderDetailId == id)).GetValueOrDefault();
         }
     }
 }

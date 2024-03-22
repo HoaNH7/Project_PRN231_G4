@@ -81,7 +81,7 @@ namespace BookAPI.Models
                     .WithMany(p => p.Orders)
                     .HasForeignKey(d => d.UserId)
                     .OnDelete(DeleteBehavior.ClientSetNull)
-                    .HasConstraintName("FK__Orders__Freight__2B3F6F97");
+                    .HasConstraintName("FK__Orders__UserID__3E52440B");
             });
 
             modelBuilder.Entity<OrderDetail>(entity =>
@@ -96,13 +96,13 @@ namespace BookAPI.Models
                     .WithMany(p => p.OrderDetails)
                     .HasForeignKey(d => d.BookId)
                     .OnDelete(DeleteBehavior.ClientSetNull)
-                    .HasConstraintName("FK__OrderDeta__BookI__2F10007B");
+                    .HasConstraintName("FK__OrderDeta__BookI__4222D4EF");
 
                 entity.HasOne(d => d.Order)
                     .WithMany(p => p.OrderDetails)
                     .HasForeignKey(d => d.OrderId)
                     .OnDelete(DeleteBehavior.ClientSetNull)
-                    .HasConstraintName("FK__OrderDeta__Quant__2E1BDC42");
+                    .HasConstraintName("FK__OrderDeta__Quant__412EB0B6");
             });
 
             modelBuilder.Entity<User>(entity =>
