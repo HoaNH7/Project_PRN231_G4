@@ -1,7 +1,10 @@
 ﻿@model IEnumerable<BookClient.Models.Book>
 @inject IConfiguration Configuration
+@inject IHttpContextAccessor HttpContextAccessor
 @{
     var imageUrlPrefix = Configuration["ImageSettings:ImageUrl"];
+    var isLoggedIn = HttpContextAccessor.HttpContext.Session.GetInt32("UserId") != null;
+    string email = HttpContextAccessor.HttpContext.Session.GetString("Email") ?? "";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -197,10 +200,10 @@
                     <thead>
                         <tr>
                             <th>@Html.DisplayNameFor(model => model.Title)</th>
-                            <th>@Html.DisplayNameFor(model => model.Author) <i class="fa fa-sort"></i></th>
+                            <th>@Html.DisplayNameFor(model => model.Author)></i></th>
                             <th>@Html.DisplayNameFor(model => model.ImageUrl)</th>
                             <th>@Html.DisplayNameFor(model => model.Category.CategoryName) </th>
-                            <th>@Html.DisplayNameFor(model => model.Price)</th>
+                            <th>@Html.DisplayNameFor(model => model.Price) <i class="fa fa-sort"></th>
                             <th>@Html.DisplayNameFor(model => model.Description)</th>
                             <th>Actions</th>
                         </tr>

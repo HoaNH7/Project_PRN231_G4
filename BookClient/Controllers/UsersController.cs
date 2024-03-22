@@ -87,10 +87,15 @@ namespace BookClient.Controllers
                 existingUserResponse.EnsureSuccessStatusCode();
                 string existingUserData = await existingUserResponse.Content.ReadAsStringAsync();
                 var existingUsers = JsonConvert.DeserializeObject<List<User>>(JObject.Parse(existingUserData)["value"].ToString());
+<<<<<<< HEAD
 
                 var logUser = existingUsers.FirstOrDefault(u => u.Email == Email && u.Password == Password);
 
                 if (logUser != null)
+=======
+                var logUser = existingUsers.FirstOrDefault(u => u.Email == Email && u.Password == Password);
+                if(logUser != null)
+>>>>>>> 855e315a4e885dca0299454a3c0041012bcc81be
                 {
                     if (logUser.Role == "admin")
                     {
@@ -100,15 +105,15 @@ namespace BookClient.Controllers
                     {
                         HttpContext.Session.SetString("Role", "user");
                     }
-                    HttpContext.Session.SetString("Email", Email);
-                    HttpContext.Session.SetInt32("UserId", 0);
-                    return RedirectToAction("Index", "Home");
                 }
                 else
                 {
-                    TempData["ErrorMessage"] = "User with this email already exists.";
+                    TempData["ErrorMessage"] = "Email or password invalid.";
                     return RedirectToAction("Login", "Users");
                 }
+                HttpContext.Session.SetString("Email", Email);
+                HttpContext.Session.SetInt32("UserId", 0);
+                return RedirectToAction("Index", "Home");
             }
             catch (Exception ex)
             {
