@@ -12,6 +12,8 @@ using System.Diagnostics.Metrics;
 using System.Net.Http.Headers;
 using System.Text;
 using BookClient.ViewModel;
+using System.Text.Json;
+using JsonSerializer = System.Text.Json.JsonSerializer;
 
 namespace BookClient.Controllers
 {
@@ -34,11 +36,34 @@ namespace BookClient.Controllers
         //}
 
         // GET: Users
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string search, int page = 1, int pageSize = 5)
         {
-            return _context.Users != null ?
-                        View(await _context.Users.ToListAsync()) :
-                        Problem("Entity set 'BookStoreContext.Users'  is null.");
+            HttpResponseMessage boRes = await client.GetAsync(UserUrl);
+            string strDataBo = await boRes.Content.ReadAsStringAsync();
+            var dataBo = JObject.Parse(strDataBo);
+            List<User> us = JsonConvert.DeserializeObject<List<User>>(dataBo["value"].ToString());
+
+            if (!string.IsNullOrEmpty(search))
+            {
+                us = us.Where(p =>
+                    p.FullName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                    p.Email.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                   p.PhoneNumber.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                   p.Address.Contains(search, StringComparison.OrdinalIgnoreCase)
+                ).ToList();
+            }
+
+            var filteredUser = us.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+            ViewBag.Model = filteredUser;
+
+            int totalUserCount = us.Count; // Tổng số User
+            ViewBag.PageNumber = page; // Số trang hiện tại
+            ViewBag.PageSize = pageSize; // Kích thước trang
+            ViewBag.TotalBooksCount = totalUserCount; // Tổng số sách
+            ViewBag.TotalPages = (int)Math.Ceiling((double)totalUserCount / pageSize); // Tổng số trang
+            ViewBag.SearchQuery = search;
+            return View(filteredUser);
         }
 
         public async Task<IActionResult> Login()
@@ -63,13 +88,15 @@ namespace BookClient.Controllers
                 string existingUserData = await existingUserResponse.Content.ReadAsStringAsync();
                 var existingUsers = JsonConvert.DeserializeObject<List<User>>(JObject.Parse(existingUserData)["value"].ToString());
 
-                if (existingUsers.Any(u => u.Email == Email && u.Password == Password))
+                var logUser = existingUsers.FirstOrDefault(u => u.Email == Email && u.Password == Password);
+
+                if (logUser != null)
                 {
-                    if (existingUsers.Any(u => u.Role == "admin"))
+                    if (logUser.Role == "admin")
                     {
                         HttpContext.Session.SetString("Role", "admin");
                     }
-                    else
+                    if (logUser.Role == "user")
                     {
                         HttpContext.Session.SetString("Role", "user");
                     }
@@ -111,7 +138,7 @@ namespace BookClient.Controllers
                 {
                     TempData["ErrorMessage"] = "User with this email already exists.";
                     TempData["Email"] = Email;
-                    return RedirectToAction("Register","Users");
+                    return RedirectToAction("Register", "Users");
                 }
 
                 var newUser = new RegisterViewModel
@@ -126,7 +153,7 @@ namespace BookClient.Controllers
                 if (Password != rePassword && Email == null)
                 {
                     TempData["Password"] = "Passwords do not match.";
-                    return RedirectToAction("Register", "Users"); 
+                    return RedirectToAction("Register", "Users");
                 }
                 string userDataJson = JsonConvert.SerializeObject(newUser);
                 var content = new StringContent(userDataJson, Encoding.UTF8, "application/json");
@@ -143,21 +170,29 @@ namespace BookClient.Controllers
         }
 
         // GET: Users/Details/5
-        public async Task<IActionResult> Details(int? id)
+        public async Task<IActionResult> Details(int? id, User user)
         {
-            if (id == null || _context.Users == null)
+
+            if (id == null)
             {
                 return NotFound();
             }
 
-            var user = await _context.Users
-                .FirstOrDefaultAsync(m => m.UserId == id);
-            if (user == null)
+            HttpResponseMessage response = await client.GetAsync($"{UserUrl}/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                string strData = await response.Content.ReadAsStringAsync();
+                JsonSerializerOptions options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                };
+                User us = JsonSerializer.Deserialize<User>(strData, options);
+                return View(us);
+            }
+            else
             {
                 return NotFound();
             }
-
-            return View(user);
         }
 
         // GET: Users/Create
@@ -175,39 +210,41 @@ namespace BookClient.Controllers
         {
             try
             {
-                string strData = JsonConvert.SerializeObject(user);
+                string strData = JsonSerializer.Serialize(user);
                 var content = new StringContent(strData, System.Text.Encoding.UTF8, "application/json");
                 HttpResponseMessage res = await client.PostAsync(UserUrl, content);
-                res.EnsureSuccessStatusCode();
                 return RedirectToAction("Index");
+
             }
             catch
             {
-                return NotFound();
+                return View(user);
             }
-            //if (ModelState.IsValid)
-            //{
-            //    _context.Add(user);
-            //    await _context.SaveChangesAsync();
-            //    return RedirectToAction(nameof(Index));
-            //}
-            //return View(user);
         }
 
         // GET: Users/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null || _context.Users == null)
+            if (id == null)
             {
                 return NotFound();
             }
 
-            var user = await _context.Users.FindAsync(id);
-            if (user == null)
+            HttpResponseMessage res = await client.GetAsync($"{UserUrl}/{id}");
+            if (res.IsSuccessStatusCode)
+            {
+                string strData = await res.Content.ReadAsStringAsync();
+                JsonSerializerOptions options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                User us = JsonSerializer.Deserialize<User>(strData, options);
+                return View(us);
+            }
+            else
             {
                 return NotFound();
             }
-            return View(user);
         }
 
         // POST: Users/Edit/5
@@ -217,50 +254,35 @@ namespace BookClient.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("UserId,FullName,Email,PhoneNumber,Address,Password,Role")] User user)
         {
-            if (id != user.UserId)
+            try
             {
-                return NotFound();
+                string strData = JsonConvert.SerializeObject(user);
+                var content = new StringContent(strData, System.Text.Encoding.UTF8, "application/json");
+                HttpResponseMessage res = await client.PutAsync($"{UserUrl}/{id}", content);
+                res.EnsureSuccessStatusCode();
+                return RedirectToAction("Index");
             }
-
-            if (ModelState.IsValid)
+            catch
             {
-                try
-                {
-                    _context.Update(user);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!UserExists(user.UserId))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
+                return View(user);
             }
-            return View(user);
         }
 
         // GET: Users/Delete/5
         public async Task<IActionResult> Delete(int? id)
         {
-            if (id == null || _context.Users == null)
+            try
+            {
+                HttpResponseMessage res = await client.GetAsync($"{UserUrl}/{id}");
+                res.EnsureSuccessStatusCode();
+                string strData = await res.Content.ReadAsStringAsync();
+                User us = JsonSerializer.Deserialize<User>(strData);
+                return View(us);
+            }
+            catch
             {
                 return NotFound();
             }
-
-            var user = await _context.Users
-                .FirstOrDefaultAsync(m => m.UserId == id);
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return View(user);
         }
 
         // POST: Users/Delete/5
@@ -268,18 +290,17 @@ namespace BookClient.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            if (_context.Users == null)
+            try
             {
-                return Problem("Entity set 'BookStoreContext.Users'  is null.");
+                HttpResponseMessage res = await client.DeleteAsync($"{UserUrl}/{id}");
+                res.EnsureSuccessStatusCode();
+                return RedirectToAction(nameof(Index));
             }
-            var user = await _context.Users.FindAsync(id);
-            if (user != null)
+            catch (Exception ex)
             {
-                _context.Users.Remove(user);
+                ViewData["Error"] = ex.Message;
+                return View();
             }
-
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
         }
 
         private bool UserExists(int id)
