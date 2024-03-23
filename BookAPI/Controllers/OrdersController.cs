@@ -33,7 +33,7 @@ namespace BookAPI.Controllers
         }
 
         // GET: api/Orders/5
-        [HttpGet("{id}")]
+        [HttpGet("odata/Orders/{id}")]
         public async Task<ActionResult<Order>> GetOrder(int id)
         {
             if (_context.Orders == null)
@@ -52,7 +52,7 @@ namespace BookAPI.Controllers
 
         // PUT: api/Orders/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPut("{id}")]
+        [HttpGet("odata/Orders/{id}")]
         public async Task<IActionResult> PutOrder(int id, Order order)
         {
             if (id != order.OrderId)
