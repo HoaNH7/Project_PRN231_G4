@@ -90,7 +90,6 @@ namespace BookClient.Controllers
 
                 var logUser = existingUsers.FirstOrDefault(u => u.Email == Email && u.Password == Password);
                 if(logUser != null)
-
                 {
                     if (logUser.Role == "admin")
                     {
